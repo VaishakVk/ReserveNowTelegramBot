@@ -8,6 +8,12 @@ class CurrentConversation(ndb.Model):
 	ChatId = ndb.IntegerProperty()
 	Message = ndb.StringProperty()
 	CreationDate = ndb.DateTimeProperty(auto_now_add=True)
+
+class UserDetail(ndb.Model):
+	ChatId = ndb.IntegerProperty()
+	FirstName = ndb.StringProperty()
+	LastName = ndb.StringProperty()
+	CreationDate = ndb.DateTimeProperty(auto_now_add=True)
 	
 class BotInstructions():
 	def __init__(self, fname, lname, chat_id, chat_message):
@@ -20,7 +26,7 @@ class BotInstructions():
 		self.latest_conversation = None
 		
 		# Requests and Responses
-		self.list_greetings = ['Hello', 'Hi', 'Hii', 'Howdy', 'Oi', 'Ey', 'Hey', 'Heyy', 'Oii']
+		self.list_greetings = ['HELLO', 'HI', 'HII', 'HOWDY', 'OI', 'EY', 'HEY', 'HEYY', 'OII']
 		
 		self.list_request_date = ['When would you like me to book a table for you?', 'When are you planning to visit us again?', 'Can I know when you would be visiting us?']
 		self.list_request_time = ['And at what time?', 'Around what time can we expect your presence?', 'At what time would you visit us?']
@@ -34,34 +40,55 @@ class BotInstructions():
 		#Junk characters
 		self.list_junk_char = [',', '.', '-', '!', '$', '=', '#', '%', '^', '*', '(', ')','"']
 	
+	def get_user_type(self):
+		user_query = UserDetail.query(UserDetail.ChatId == self.chat_id)
+		#logging.debug(user_query.count())
+		if user_query.count() > 0:
+			return 'EXISTING'
+		else:
+			UserInsert = UserDetail(ChatId = self.chat_id, FirstName = self.fname, LastName = self.lname)
+			UserInsert.put()
+			return 'NEW'
+	
 	def remove_junk(self):
 		for i in self.list_junk_char:
 			self.cleaned_message = self.cleaned_message.replace(i, '')
 			#logging.debug(i + ' ' + self.cleaned_message)
 		return self.cleaned_message.strip()
 	
-	def check_for_greeting():
+	def check_for_greeting(self):
 		for i in self.list_greetings:
-			if i in self.cleaned_message.split():
-				return True
-	
+			if i in self.cleaned_message.upper().split():
+				return True	
+				
 	def get_response(self):
+		
+		# Check for New User or an Existing User
+		user_type = self.get_user_type()
+		logging.debug(user_type)
+		
+		# Remove Junk Characters from text
 		self.cleaned_message = self.remove_junk()
-		#self.response = 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!'
-		conv_query = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id) ##.order(-CurrentConversation.CreationDate)
-		logging.debug(len(conv_query))
+		
+		#Retrieve Latest conversation
+		conv_query = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id).order(-CurrentConversation.CreationDate)
+		logging.debug(conv_query.count())
 		for i in conv_query:
 			self.latest_conversation = i.Message
+			#logging.debug(i.key)
+			#i.key.delete()
 			break
 		
-		greeting = check_for_greeting()
+		# Check for Greeting
+		greeting = self.check_for_greeting()
 		
 		if greeting:
 			return 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!'
+			
 		# Insert data into database
 		Conv = CurrentConversation(ChatId = self.chat_id, Message = self.chat_message)
 		Conv.put()
-		return latest_conversation
+		return self.latest_conversation
 		
 class MainPage(webapp2.RequestHandler):
 	
@@ -83,7 +110,7 @@ class MainPage(webapp2.RequestHandler):
 		response = bot_response.get_response()
 		
 		#response = 'Hello ' + f_name + ' ' + l_name + ', Welcome to ReserveNow !!'
-		message_url = 'https://api.telegram.org/bot/sendMessage?text='+response+'&chat_id='+str(chat_id)
+		message_url = 'https://api.telegram.org/<>/sendMessage?text='+response+'&chat_id='+str(chat_id)
 		urllib.urlopen(message_url)
 		
 
