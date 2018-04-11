@@ -17,6 +17,7 @@ class BotInstructions():
 		self.chat_message = chat_message
 		self.response = None
 		self.cleaned_message = chat_message
+		self.latest_conversation = None
 		
 		# Requests and Responses
 		self.list_greetings = ['Hello', 'Hi', 'Hii', 'Howdy', 'Oi', 'Ey', 'Hey', 'Heyy', 'Oii']
@@ -38,20 +39,28 @@ class BotInstructions():
 			self.cleaned_message = self.cleaned_message.replace(i, '')
 			#logging.debug(i + ' ' + self.cleaned_message)
 		return self.cleaned_message.strip()
-			
+	
+	def check_for_greeting():
+		for i in self.list_greetings:
+			if i in self.cleaned_message.split():
+				return True
+	
 	def get_response(self):
+		self.cleaned_message = self.remove_junk()
+		#self.response = 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!'
+		conv_query = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id) ##.order(-CurrentConversation.CreationDate)
+		logging.debug(len(conv_query))
+		for i in conv_query:
+			self.latest_conversation = i.Message
+			break
+		
+		greeting = check_for_greeting()
+		
+		if greeting:
+			return 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!'
 		# Insert data into database
 		Conv = CurrentConversation(ChatId = self.chat_id, Message = self.chat_message)
 		Conv.put()
-		
-		conv_query = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id) ##.order(-CurrentConversation.CreationDate)
-		for i in conv_query:
-			latest_conversation = i.Message
-			break
-		
-		#query = ndb.gql('SELECT Message FROM CurrentConversation WHERE ChatId = :1 ORDER BY CreationDate DESC LIMIT 1', self.chat_id)
-		self.cleaned_message = self.remove_junk()
-		self.response = 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!'
 		return latest_conversation
 		
 class MainPage(webapp2.RequestHandler):
