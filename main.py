@@ -91,7 +91,8 @@ class BotInstructions():
 	def get_response(self):
 		
 		# Check for new Conversation
-		conv_count = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id)
+		conv_count = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id).count()
+		logging.debug(conv_count)
 	
 		if conv_count == 0:
 			# Check for New User or an Existing User
@@ -116,7 +117,7 @@ class BotInstructions():
 		else:
 			# Remove Junk Characters from text
 			self.cleaned_message = self.remove_junk()
-			
+			logging.debug('Inside Else')
 			#Retrieve Latest request
 			conv_query = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id).order(-CurrentConversation.CreationDate)
 			logging.debug(conv_query.count())
@@ -126,8 +127,8 @@ class BotInstructions():
 				#i.key.delete()
 				break
 			
-			#Retrieve Latest response
-			conv_query_response = CurrentConversation.query(CurrentConversation.ChatId == -1 * self.chat_id, CurrentConversation.Message != 'Sorry, I didnt get that.').order(-CurrentConversation.CreationDate)
+			#Retrieve Latest response --, CurrentConversation.Message != 'Sorry, I didnt get that.'
+			conv_query_response = CurrentConversation.query(CurrentConversation.ChatId == -1 * self.chat_id).order(-CurrentConversation.CreationDate)
 			logging.debug(conv_query_response.count())
 			for i in conv_query_response:
 				self.latest_response = i.Message
@@ -136,11 +137,11 @@ class BotInstructions():
 				break
 			
 			if self.latest_response.startswith('Welcome') or self.latest_response.startswith('Hello'):
-				for i in self.list_yes.upper():
+				for i in map(lambda x:x.upper(), self.list_yes):
 					if i in self.cleaned_message.upper().split():
 						return random.choice(self.list_request_date)
 				
-				for i in self.list_no.upper():
+				for i in map(lambda x:x.upper(), self.list_no):
 					if i in self.cleaned_message.upper().split():
 						return random.choice(self.list_response_decline)
 				
@@ -157,7 +158,7 @@ class BotInstructions():
 			return 'Sorry, I didnt get that.'
 		
 class MainPage(webapp2.RequestHandler):
-	
+		
 	def post(self):
 
 		# Convert to JSON
@@ -176,7 +177,7 @@ class MainPage(webapp2.RequestHandler):
 		response = bot_response.get_response()
 		
 		#response = 'Hello ' + f_name + ' ' + l_name + ', Welcome to ReserveNow !!'
-		message_url = 'https://api.telegram.org/<>/sendMessage?text='+response+'&chat_id='+str(chat_id)
+		message_url = 'https://api.telegram.org/bot501989919:AAGqYAHmoJy4lIfhhBZfUW6JJ8n2fNA2Nmc/sendMessage?text='+response+'&chat_id='+str(chat_id)
 		urllib.urlopen(message_url)
 		
 
