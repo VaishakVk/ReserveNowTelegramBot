@@ -1,0 +1,12 @@
+indexes:
+- kind: CurrentConversation
+  properties:
+  - name: ChatId
+  - name: CreationDate
+    direction: desc
+ 
+- kind: ReservationHistory
+  properties:
+  - name: ChatId
+  - name: CreationDate
+    direction: desc
