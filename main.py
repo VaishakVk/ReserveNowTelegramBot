@@ -2,6 +2,7 @@ import webapp2
 import urllib
 import json
 import logging
+import datetime
 from google.appengine.ext import ndb
 import random
 
@@ -106,29 +107,49 @@ class BotInstructions():
 		for i in self.list_time_measure:
 			if i in self.cleaned_message:
 				date_text = self.cleaned_message.split(i)[0]
-				UserReservationInsert = ReservationHistory(ChatId = self.chat_id, TableType = 'X', Time = '7:15')
-				UserReservationInsert.put()
+		UserReservationInsert = ReservationHistory(ChatId = self.chat_id, TableType = 'X', Time = '7:15')
+		UserReservationInsert.put()
 		return True
 	
 	def validate_tbl_type(self):
 		for i in self.list_table_type:
 			if i in self.cleaned_message.upper().split():
 				user_reservation_query = ReservationHistory.query(ReservationHistory.ChatId == self.chat_id).order(-ReservationHistory.CreationDate)
-				for i in user_reservation_query:
-					user_resv_det = i.key.get()
-					user_resv_det.TableType = dict_table_type[i]
+				for j in user_reservation_query:
+					user_resv_det = j.key.get()
+					user_resv_det.TableType = self.dict_table_type[i]
 					user_resv_det.put()
 					break
 				return True
 		return False
+	
+	def db_cleanup(self):
+		DelConv = CurrentConversation.query(CurrentConversation.ChatId == -1 * self.chat_id)
+		for i in DelConv:
+			i.key.delete()
 		
+		DelConvUser = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id)
+		for i in DelConvUser:
+			i.key.delete()
+			
 	def get_response(self):
+		
+		TimeInterval = 0
 		
 		# Check for new Conversation
 		conv_count = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id).count()
 		logging.debug(conv_count)
-	
-		if conv_count == 0:
+		
+		# Check if the latest conversation has exceeded timeout - 300 secs
+		conv_query_latest = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id).order(-CurrentConversation.CreationDate)
+		for i in conv_query_latest:
+			TimeInterval = (datetime.datetime.now() - i.CreationDate).seconds
+			break
+			
+		if conv_count == 0 or TimeInterval > 180:
+			if TimeInterval > 180:
+				self.db_cleanup()
+			
 			# Check for New User or an Existing User
 			user_type = self.get_user_type()
 			logging.debug(user_type)
@@ -158,7 +179,8 @@ class BotInstructions():
 			logging.debug(conv_query.count())
 			for i in conv_query:
 				self.latest_user_conv = i.Message
-				#logging.debug(i.key)
+				logging.debug('Secs')
+				logging.debug((datetime.datetime.now() - i.CreationDate).seconds)
 				#i.key.delete()
 				break
 			
@@ -186,27 +208,27 @@ class BotInstructions():
 						Conv.put()
 						return self.response
 				
-				return self.list_default
+				return random.choice(self.list_default)
 			
 			if self.latest_response in self.list_request_date:
-				time = parse_date
+				time = self.parse_date()
 				if time:
 					self.response = random.choice(self.list_request_table_type)
 					Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 					Conv.put()
 					return self.response
 				else:
-					return self.list_default
+					return random.choice(self.list_default)
 					
 			if self.latest_response in self.list_request_table_type:
-				tbl_type = validate_tbl_type
+				tbl_type = self.validate_tbl_type()
 				if tbl_type:
 					self.response = random.choice(self.list_request_confirmation)
 					Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 					Conv.put()
 					return self.response
 				else:
-					return self.list_default
+					return random.choice(self.list_default)
 			
 			if self.latest_response in self.list_request_confirmation:
 				for i in map(lambda x:x.upper(), self.list_book_confirm):
@@ -214,6 +236,7 @@ class BotInstructions():
 						self.response = random.choice(self.list_response_success)
 						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 						Conv.put()
+						self.db_cleanup()
 						return self.response
 				
 				for i in map(lambda x:x.upper(), self.list_no):
@@ -223,7 +246,7 @@ class BotInstructions():
 						Conv.put()
 						return self.response
 				
-				return self.list_default
+				return random.choice(self.list_default)
 				
 			# Check for Greeting
 			#greeting = self.check_for_greeting()
@@ -231,7 +254,7 @@ class BotInstructions():
 			#if greeting:
 			#	return 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!'
 				
-			return self.list_default
+			return random.choice(self.list_default)
 		
 class MainPage(webapp2.RequestHandler):
 		
