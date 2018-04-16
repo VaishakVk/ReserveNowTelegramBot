@@ -19,7 +19,6 @@ class UserDetail(ndb.Model):
 class ReservationHistory(ndb.Model):
 	ChatId = ndb.IntegerProperty()
 	TableType = ndb.StringProperty()
-	Date = ndb.StringProperty()
 	Time = ndb.StringProperty()
 	CreationDate = ndb.DateTimeProperty(auto_now_add=True)
 	
@@ -39,18 +38,18 @@ class BotInstructions():
 		
 		self.list_request_book = ['Shall I book a table for you?'
 								, 'Would you like me to book a table for you?']
-		self.list_request_date = ['When would you like me to book a table for you?'
-								, 'When are you planning to visit us again?'
-								, 'Can I know when you would be visiting us?']
-		self.list_request_time = ['And at what time?'
+		self.list_request_date = ['When would you like me to book a table for you today? Please note that we currently do reservations for the same day only.'
+								, 'When are you planning to visit us today? Please note that we currently do reservations for the same day only.'
+								, 'Can I know when you would be visiting us today? Please note that we currently do reservations for the same day only.']
+		'''self.list_request_time = ['And at what time?'
 								, 'Around what time can we expect your presence?'
-								, 'At what time would you visit us?']
+								, 'At what time would you visit us?']'''
 		self.list_request_ppl = ['How many persons would be accompanying you ?'
 							   , 'How many guests should we expect?'
 							   , 'Let me know how many persons are accompanying you.']
 		self.list_request_table_type = ['We offer pool view, roof top and In the house. Which one would you prefer?'
 									  , 'We have some of the best seats waiting or you - pool view, roof top and In the house. Please select your preference.'
-									  , 'How about making a selection - pool view, roof top and In the house']
+									  , 'How about making a table selection - pool view, roof top and In the house']
 		self.list_request_confirmation = ['You have opted for {type} table and you would be visiting us on {date} at {time}. Can I confirm?'
 										, 'Please confirm. The following is your preference - {type} table visiting us on {date} at {time}']
 		
@@ -63,6 +62,21 @@ class BotInstructions():
 		self.list_response_decline = ['Oops, but my job is to book a table', 'Sorry, but thats what I am meant to do.']
 		self.list_yes = ['Yes', 'Yeah', 'Yup', 'Yupp', 'Sure', 'Yess', 'ok', 'okay', 'fine', 'good', 'yea', 'definitely', 'right', 'aye', 'certainly', 'positive']
 		self.list_no = ['No', 'nope', 'Nah', 'Na', 'not', 'negative']
+		self.list_time = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23']
+		self.list_time_measure = ['o clock', 'am', 'pm' 'a.m.', 'p.m.', 'a m', 'p m', 'oclock']
+		self.list_default = ['Sorry, I did not get that']
+		self.list_table_type = ['POOL', 'ROOF', 'TOP', 'HOUSE', 'INSIDE']
+		self.list_book_confirm = self.list_yes + ['Go ahead', 'book', 'Carry on']
+		self.dict_table_type = {'ROOF': 'Roof Top',
+								'POOL': 'Pool View',
+								'TOP': 'Roof Top',
+								'HOUSE': 'In the house',
+								'INSIDE': 'In the house'
+								}
+		
+		''',
+						  'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen',
+						  'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty one', 'twenty two', 'twenty three', 'twenty four'] '''
 		
 		#Junk characters
 		self.list_junk_char = [',', '.', '-', '!', '$', '=', '#', '%', '^', '*', '(', ')','"']
@@ -87,7 +101,27 @@ class BotInstructions():
 		for i in self.list_greetings:
 			if i in self.cleaned_message.upper().split():
 				return True	
-				
+	
+	def parse_date(self):
+		for i in self.list_time_measure:
+			if i in self.cleaned_message:
+				date_text = self.cleaned_message.split(i)[0]
+				UserReservationInsert = ReservationHistory(ChatId = self.chat_id, TableType = 'X', Time = '7:15')
+				UserReservationInsert.put()
+		return True
+	
+	def validate_tbl_type(self):
+		for i in self.list_table_type:
+			if i in self.cleaned_message.upper().split():
+				user_reservation_query = ReservationHistory.query(ReservationHistory.ChatId == self.chat_id).order(-ReservationHistory.CreationDate)
+				for i in user_reservation_query:
+					user_resv_det = i.key.get()
+					user_resv_det.TableType = dict_table_type[i]
+					user_resv_det.put()
+					break
+				return True
+		return False
+		
 	def get_response(self):
 		
 		# Check for new Conversation
@@ -118,6 +152,7 @@ class BotInstructions():
 			# Remove Junk Characters from text
 			self.cleaned_message = self.remove_junk()
 			logging.debug('Inside Else')
+			
 			#Retrieve Latest request
 			conv_query = CurrentConversation.query(CurrentConversation.ChatId == self.chat_id).order(-CurrentConversation.CreationDate)
 			logging.debug(conv_query.count())
@@ -139,23 +174,64 @@ class BotInstructions():
 			if self.latest_response.startswith('Welcome') or self.latest_response.startswith('Hello'):
 				for i in map(lambda x:x.upper(), self.list_yes):
 					if i in self.cleaned_message.upper().split():
-						return random.choice(self.list_request_date)
+						self.response = random.choice(self.list_request_date)
+						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+						Conv.put()
+						return self.response
 				
 				for i in map(lambda x:x.upper(), self.list_no):
 					if i in self.cleaned_message.upper().split():
-						return random.choice(self.list_response_decline)
+						self.response = random.choice(self.list_response_decline)
+						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+						Conv.put()
+						return self.response
 				
-				return 'Sorry, I didnt get that.'
+				return self.list_default
 			
 			if self.latest_response in self.list_request_date:
-				pass
+				time = parse_date
+				if time:
+					self.response = random.choice(self.list_request_table_type)
+					Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+					Conv.put()
+					return self.response
+				else:
+					return self.list_default
+					
+			if self.latest_response in self.list_request_table_type:
+				tbl_type = validate_tbl_type
+				if tbl_type:
+					self.response = random.choice(self.list_request_confirmation)
+					Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+					Conv.put()
+					return self.response
+				else:
+					return self.list_default
+			
+			if self.latest_response in self.list_request_confirmation:
+				for i in map(lambda x:x.upper(), self.list_book_confirm):
+					if i in self.cleaned_message.upper().split():
+						self.response = random.choice(self.list_response_success)
+						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+						Conv.put()
+						return self.response
+				
+				for i in map(lambda x:x.upper(), self.list_no):
+					if i in self.cleaned_message.upper().split():
+						self.response = random.choice(self.list_request_date)
+						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+						Conv.put()
+						return self.response
+				
+				return self.list_default
+				
 			# Check for Greeting
 			#greeting = self.check_for_greeting()
 			
 			#if greeting:
 			#	return 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!'
 				
-			return 'Sorry, I didnt get that.'
+			return self.list_default
 		
 class MainPage(webapp2.RequestHandler):
 		
