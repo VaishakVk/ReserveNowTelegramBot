@@ -51,8 +51,8 @@ class BotInstructions():
 		self.list_request_table_type = ['We offer pool view, roof top and In the house. Which one would you prefer?'
 									  , 'We have some of the best seats waiting or you - pool view, roof top and In the house. Please select your preference.'
 									  , 'How about making a table selection - pool view, roof top and In the house']
-		self.list_request_confirmation = ['You have opted for {type} table and you would be visiting us on {date} at {time}. Can I confirm?'
-										, 'Please confirm. The following is your preference - {type} table visiting us on {date} at {time}']
+		self.list_request_confirmation = ['You have opted for {} table and you would be visiting us at {} today. Can I confirm?'
+										, 'Please confirm. The following is your preference - {} table visiting us at {} today']
 		
 		self.list_response_success = ['Congrats!! We have successfully reserved a table for you. See you there at the restaurant'
 									, 'Great News!! You table booking is confirmed. See you there at the restaurant'
@@ -193,29 +193,30 @@ class BotInstructions():
 				#i.key.delete()
 				break
 			
-			if self.latest_response in 'What would you like to do':
-				for i in self.latest_response:
-					if i.upper() in ('BOOK'):
-						self.response = random.choice(self.list_request_date)
-						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
-						Conv.put()
-						return self.response
-					
-					elif i.upper() in ('UPDATE', 'MODIFY', 'CHANGE'):
-						pass
-						
-					elif i.upper() in ('STATUS'):
+			if 'What would you like to do' in self.latest_response:
+				#for i in self.latest_response:
+					if 'STATUS' in self.cleaned_message.upper():
 						user_reservation_query = ReservationHistory.query(ReservationHistory.ChatId == self.chat_id).order(-ReservationHistory.CreationDate)
 						if user_reservation_query.count() > 0:
 							for i in user_reservation_query:
 								user_resv_time = i.Time
 								user_resv_tabletype = i.TableType
-								self.response = 'You have booked a {} table at {}'.format(user_resv_time, user_resv_tabletype)
+								self.response = 'You have booked a {} table at {}'.format(user_resv_tabletype, user_resv_time)
 								return self.response
 						else:
 							return 'Sorry I did not find any table booked.' + '\n' + random.choice(self.list_request_book)
-					else:
-						return 'Sorry I did not get that. I can book a table, update or modify any of yout present reservation'
+						
+					elif 'BOOK' in self.cleaned_message.upper():
+						self.response = random.choice(self.list_request_date)
+						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+						Conv.put()
+						return self.response 
+						
+					for i in ['UPDATE', 'MODIFY', 'CHANGE']:
+						if i in self.cleaned_message.upper():
+							return 1
+						
+					return 'Sorry I did not get that. I can book a table, update or modify any of yout present reservation'
 			
 			if self.latest_response in self.list_request_book:
 				for i in map(lambda x:x.upper(), self.list_yes):
@@ -247,7 +248,7 @@ class BotInstructions():
 			if self.latest_response in self.list_request_table_type:
 				tbl_type = self.validate_tbl_type()
 				if tbl_type:
-					self.response = random.choice(self.list_request_confirmation)
+					self.response = random.choice(self.list_request_confirmation).format()
 					Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 					Conv.put()
 					return self.response
