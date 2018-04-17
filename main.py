@@ -159,12 +159,12 @@ class BotInstructions():
 			Conv.put()
 		
 			if user_type == 'NEW':
-				self.response = 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!' + '\n' + random.choice(self.list_request_book)
+				self.response = 'Hello ' + self.fname + ' ' + self.lname + ', Welcome to ReserveNow !!' + '\n' + 'What would you like to do?'
 				Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 				Conv.put()
 				return self.response
 			elif user_type == 'EXISTING':
-				self.response = 'Welcome back ' + self.fname + ' ' + self.lname + ', Hope you are doing well !!' + '\n' + random.choice(self.list_request_book)
+				self.response = 'Welcome back ' + self.fname + ' ' + self.lname + ', Hope you are doing well !!' + '\n' + 'What would you like to do?'
 				Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 				Conv.put()
 				return self.response
@@ -193,7 +193,29 @@ class BotInstructions():
 				#i.key.delete()
 				break
 			
-			if self.latest_response.startswith('Welcome') or self.latest_response.startswith('Hello'):
+			if self.latest_response in 'What would you like to do':
+				for i in self.latest_response:
+					if i.upper() in ('BOOK'):
+						self.response = random.choice(self.list_request_date)
+						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+						Conv.put()
+						return self.response
+					
+					elif i.upper() in ('UPDATE', 'MODIFY', 'CHANGE'):
+						pass
+						
+					elif i.upper() in ('STATUS'):
+						user_reservation_query = ReservationHistory.query(ReservationHistory.ChatId == self.chat_id).order(-ReservationHistory.CreationDate)
+						if user_reservation_query.count() > 0:
+							for i in user_reservation_query:
+								user_resv_time = i.Time
+								user_resv_tabletype = i.TableType
+								self.response = 'You have booked a table at {}'.format(i.Time)
+								return self.response
+						else:
+							return 'Sorry we did not find any table booked.' + '\n' + random.choice(self.list_request_book)
+			
+			if self.latest_response in self.list_request_book:
 				for i in map(lambda x:x.upper(), self.list_yes):
 					if i in self.cleaned_message.upper().split():
 						self.response = random.choice(self.list_request_date)
