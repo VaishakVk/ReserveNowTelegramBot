@@ -210,10 +210,12 @@ class BotInstructions():
 							for i in user_reservation_query:
 								user_resv_time = i.Time
 								user_resv_tabletype = i.TableType
-								self.response = 'You have booked a table at {}'.format(i.Time)
+								self.response = 'You have booked a {} table at {}'.format(user_resv_time, user_resv_tabletype)
 								return self.response
 						else:
-							return 'Sorry we did not find any table booked.' + '\n' + random.choice(self.list_request_book)
+							return 'Sorry I did not find any table booked.' + '\n' + random.choice(self.list_request_book)
+					else:
+						return 'Sorry I did not get that. I can book a table, update or modify any of yout present reservation'
 			
 			if self.latest_response in self.list_request_book:
 				for i in map(lambda x:x.upper(), self.list_yes):
