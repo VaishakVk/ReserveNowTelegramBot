@@ -107,19 +107,29 @@ class BotInstructions():
 		time = []
 		for i in self.cleaned_message:
 			for j in i:
-				if j.isnumberic():
+				if j.isnumeric():
 					time.append(j)
 		if len(time) == 4:
-			hr = time[:2]
-			min = time[2:]
+			hr = ''.join(time[:2])
+			min = ''.join(time[2:])
+			if  int(hr) > 23 or int(hr) < 0:
+				return False
+			if int(min) > 59 and int(min) < 0:
+				return False
 		elif len(time) == 3:
 			hr = time[0]
-			min = time[1:]
+			min = ''.join(time[1:])
+			if  int(hr) > 9 or int(hr) < 0:
+				return False
+			if int(min) > 59 and int(min) < 0:
+				return False
 		elif len(time) == 1 or len(time) == 2:
-			hr = ''.join(time)
+			hr = time[0]
 			min = '00'
-		
-		UserReservationInsert = ReservationHistory(ChatId = self.chat_id, TableType = 'X', Time = hr + ':' + min)
+			if int(hr) > 9 or int(hr) < 0:
+				return False
+			
+		UserReservationInsert = ReservationHistory(ChatId = self.chat_id, TableType = 'X', Time = str(hr) + ':' + str(min))
 		UserReservationInsert.put()
 		return True
 	
@@ -131,9 +141,11 @@ class BotInstructions():
 					user_resv_det = j.key.get()
 					user_resv_det.TableType = self.dict_table_type[i]
 					user_resv_det.put()
+					tbl_type = self.dict_table_type[i]
+					tbl_time = j.Time
 					break
-				return True
-		return False
+				return True, tbl_type, tbl_time
+		return False, _, _
 	
 	def db_cleanup(self):
 		DelConv = CurrentConversation.query(CurrentConversation.ChatId == -1 * self.chat_id)
@@ -158,8 +170,8 @@ class BotInstructions():
 			TimeInterval = (datetime.datetime.now() - i.CreationDate).seconds
 			break
 			
-		if conv_count == 0 or TimeInterval > 180:
-			if TimeInterval > 180:
+		if conv_count == 0 or TimeInterval > 300:
+			if TimeInterval > 300:
 				self.db_cleanup()
 			
 			# Check for New User or an Existing User
@@ -215,10 +227,11 @@ class BotInstructions():
 								user_resv_tabletype = i.TableType
 								self.response = 'You have booked a {} table at {}'.format(user_resv_tabletype, user_resv_time)
 								return self.response
+						
 						else:
 							return 'Sorry I did not find any table booked.' + '\n' + random.choice(self.list_request_book)
 						
-					elif 'BOOK' in self.cleaned_message.upper():
+					elif 'BOOK' in self.cleaned_message.upper() or 'RESERVE' in self.cleaned_message.upper():
 						self.response = random.choice(self.list_request_date)
 						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 						Conv.put()
@@ -237,7 +250,19 @@ class BotInstructions():
 									return self.response
 							else:
 								return 'Sorry I did not find any table booked.' + '\n' + random.choice(self.list_request_book)
-						
+					
+					if ('OK' in self.cleaned_message.upper().split() or
+							'OKAY' in self.cleaned_message.upper().split() or 
+								'OKI' in self.cleaned_message.upper().split() or 
+									'OKIE' in self.cleaned_message.upper().split() or 
+										'MMM' in self.cleaned_message.upper().split() or 
+											'HMM' in self.cleaned_message.upper().split() or 
+												'UMM' in self.cleaned_message.upper().split()):
+								return 'Hmm!'
+			
+					if 'THANK' in self.cleaned_message.upper().split():
+						return 'Welome!!'						
+					
 					return 'Sorry I did not get that. I can book a table, update or modify any of yout present reservation'
 			
 			if self.latest_response in self.list_request_book:
@@ -257,7 +282,7 @@ class BotInstructions():
 				
 				return random.choice(self.list_default)
 			
-			if self.latest_response in self.list_request_date or self.latest_response in 'When would you like to modify':
+			if self.latest_response in self.list_request_date or 'When would you like to modify' in self.latest_response :
 				time = self.parse_date()
 				if time:
 					self.response = random.choice(self.list_request_table_type)
@@ -265,21 +290,23 @@ class BotInstructions():
 					Conv.put()
 					return self.response
 				else:
-					return random.choice(self.list_default)
+					return 'Please input a valid time'
 					
 			if self.latest_response in self.list_request_table_type:
-				tbl_type = self.validate_tbl_type()
+				tbl_type, tbl_type_book, tbl_time = self.validate_tbl_type()
 				if tbl_type:
-					self.response = random.choice(self.list_request_confirmation).format()
+					self.response = random.choice(self.list_request_confirmation).format(tbl_type_book, tbl_time)
 					Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 					Conv.put()
 					return self.response
 				else:
 					return random.choice(self.list_default)
 			
-			if self.latest_response in self.list_request_confirmation:
+			if 'table and you would be visiting us at' in self.latest_response or 'Please confirm. The following is your preference -' in self.latest_response:
 				for i in map(lambda x:x.upper(), self.list_book_confirm):
 					if i in self.cleaned_message.upper().split():
+						logging.debug(self.cleaned_message.upper().split())
+						logging.debug(i)
 						self.response = random.choice(self.list_response_success)
 						Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
 						Conv.put()
@@ -293,8 +320,20 @@ class BotInstructions():
 						Conv.put()
 						return self.response
 				
+					
 				return random.choice(self.list_default)
 				
+			if ('OK' in self.cleaned_message.upper().split() or
+					'OKAY' in self.cleaned_message.upper().split() or 
+						'OKI' in self.cleaned_message.upper().split() or 
+							'OKIE' in self.cleaned_message.upper().split() or 
+								'MMM' in self.cleaned_message.upper().split() or 
+									'HMM' in self.cleaned_message.upper().split() or 
+										'UMM' in self.cleaned_message.upper().split()):
+				return 'Hmm!'
+			
+			if 'THANK' in self.cleaned_message.upper().split():
+				return 'Welome!!'
 			# Check for Greeting
 			#greeting = self.check_for_greeting()
 			
