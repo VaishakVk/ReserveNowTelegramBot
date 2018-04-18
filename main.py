@@ -104,10 +104,22 @@ class BotInstructions():
 				return True	
 	
 	def parse_date(self):
-		for i in self.list_time_measure:
-			if i in self.cleaned_message:
-				date_text = self.cleaned_message.split(i)[0]
-		UserReservationInsert = ReservationHistory(ChatId = self.chat_id, TableType = 'X', Time = '7:15')
+		time = []
+		for i in self.cleaned_message:
+			for j in i:
+				if j.isnumberic():
+					time.append(j)
+		if len(time) == 4:
+			hr = time[:2]
+			min = time[2:]
+		elif len(time) == 3:
+			hr = time[0]
+			min = time[1:]
+		elif len(time) == 1 or len(time) == 2:
+			hr = ''.join(time)
+			min = '00'
+		
+		UserReservationInsert = ReservationHistory(ChatId = self.chat_id, TableType = 'X', Time = hr + ':' + min)
 		UserReservationInsert.put()
 		return True
 	
@@ -214,7 +226,17 @@ class BotInstructions():
 						
 					for i in ['UPDATE', 'MODIFY', 'CHANGE']:
 						if i in self.cleaned_message.upper():
-							return 1
+							user_reservation_query = ReservationHistory.query(ReservationHistory.ChatId == self.chat_id).order(-ReservationHistory.CreationDate)
+							if user_reservation_query.count() > 0:
+								for i in user_reservation_query:
+									user_resv_time = i.Time
+									user_resv_tabletype = i.TableType
+									self.response = 'You have booked a {} table at {}. When would you like to modify?'.format(user_resv_tabletype, user_resv_time)
+									Conv = CurrentConversation(ChatId = -1 * self.chat_id, Message = self.response)
+									Conv.put()
+									return self.response
+							else:
+								return 'Sorry I did not find any table booked.' + '\n' + random.choice(self.list_request_book)
 						
 					return 'Sorry I did not get that. I can book a table, update or modify any of yout present reservation'
 			
@@ -235,7 +257,7 @@ class BotInstructions():
 				
 				return random.choice(self.list_default)
 			
-			if self.latest_response in self.list_request_date:
+			if self.latest_response in self.list_request_date or self.latest_response in 'When would you like to modify':
 				time = self.parse_date()
 				if time:
 					self.response = random.choice(self.list_request_table_type)
