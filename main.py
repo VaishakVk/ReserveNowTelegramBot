@@ -46,7 +46,7 @@ class BotInstructions():
 								, 'Around what time can we expect your presence?'
 								, 'At what time would you visit us?']'''
 		self.list_request_ppl = ['How many persons would be accompanying you ?'
-							   , 'How many guests should we expect?'
+							   , 'How many guests should I expect?'
 							   , 'Let me know how many persons are accompanying you.']
 		self.list_request_table_type = ['We offer pool view, roof top and In the house. Which one would you prefer?'
 									  , 'We have some of the best seats waiting or you - pool view, roof top and In the house. Please select your preference.'
