@@ -19,3 +19,8 @@ Data is stored using Google Cloud Datastore.
 
 ## Assumptions
 - Unlimited hotel area
+
+## Database Tables
+- CurrentConversation - to store conversations in a session
+- UserDetail - Users table
+- ReservationHistory - Reservations base table
