@@ -1,6 +1,8 @@
 # ReserveNowTelegramBot
 Chat bot to reserve a table using Telegram Bot. Google App engine is used to Webhook the telegram Bot messages. WebHook: https://reservernow.appspot.com
 
+Data is stored using Google Cloud Datastore.
+
 ## Dependencies
 1. webapp2
 2. json
